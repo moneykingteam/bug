@@ -12,6 +12,50 @@ var tickRate = 150; // ping the client every X miliseconds
 var afterCrashTime = 3000; // how long from game_crash -> game_starting
 var restartTime = 5000; // How long from  game_starting -> game_started
 
+function dummy_bet(myself, user, betAmount, autoCashOut, callback) {
+    var self = myself;
+
+	assert(typeof user.id === 'number');
+    assert(typeof user.username === 'string');
+    assert(lib.isInt(betAmount));
+    assert(lib.isInt(autoCashOut) && autoCashOut >= 100);
+
+    if (self.state !== 'STARTING')
+        return callback('GAME_IN_PROGRESS');
+
+    if (lib.hasOwnProperty(self.pending, user.username) || lib.hasOwnProperty(self.players, user.username))
+        return callback('ALREADY_PLACED_BET');
+
+    self.pending[user.username] = user.username;
+    self.pendingCount++;
+	
+	//console.log("game user : ", user);	
+
+    db.placeBet(betAmount, autoCashOut, user.id, self.gameId, function(err, playId) {
+        self.pendingCount--;
+
+        if (err) {
+            if (err.code == '23514') // constraint violation
+                return callback('NOT_ENOUGH_MONEY');
+
+            console.log('[INTERNAL_ERROR] could not play game, got error: ', err);
+            callback(err);
+        } else {
+            assert(playId > 0);
+
+            self.bankroll += betAmount;
+
+            var index = self.joined.insert({ user: user, bet: betAmount, autoCashOut: autoCashOut, playId: playId, status: 'PLAYING' });
+
+            self.emit('player_bet',  {
+                username: user.username,
+                index: index
+            });
+
+            callback(null);
+        }
+    });
+};
 function Game(lastGameId, lastHash, bankroll, gameHistory) {
     var self = this;
 
@@ -72,6 +116,72 @@ function Game(lastGameId, lastHash, bankroll, gameHistory) {
             });
 
             setTimeout(blockGame, restartTime);
+	    var tempuser = {
+		0:{id: 2, username: 'jackgui'},
+		1:{id: 3, username: 'poslhd12qa'},
+		2:{id: 4, username: 'ncjsh8'},
+		3:{id: 6, username: 'laod!'},
+		4:{id: 7, username: 'hjka123'},
+		5:{id: 8, username: 'gaga'},
+		6:{id: 9, username: 'qahajj111'},
+		7:{id: 11, username: 'Mario'},
+		8:{id: 12, username: '1111111'},
+		9:{id: 13, username: 'tweetyksd'},
+		10:{id: 14, username: 'zxaksjhhhs'},
+		11:{id: 17, username: 'yang'}, 
+		12:{id: 18, username: 'larry'}, 
+		13:{id: 19, username: 'maniabustabit'}, 
+		14:{id: 20, username: 'paul'}, 
+		15:{id: 21, username: 'Muhamabad'}, 
+		16:{id: 22, username: 'oliverf'}, 
+		17:{id: 23, username: 'luckyman917'}, 
+		18:{id: 24, username: 'hooo'}, 
+		19:{id: 25, username: 'goldline1992'}, 
+		20:{id: 26, username: 'henda'}, 
+		21:{id: 27, username: 'Tom'}, 
+		22:{id: 28, username: 'stevemi'}, 
+		23:{id: 29, username: 'pradara'}, 
+		24:{id: 30, username: 'Jerry'}, 
+		25:{id: 31, username: 'winnerman318'}, 
+		26:{id: 32, username: 'mary'}, 
+		27:{id: 33, username: 'AndreiMaxim'}, 
+		28:{id: 34, username: 'runnerguy23'}, 
+		29:{id: 35, username: 'clienas'}, 
+		30:{id: 36, username: 'hoooo'},
+		31:{id: 37, username: 'tomsen'},
+		32:{id: 38, username: 'YoukoSmith'},
+		33:{id: 39, username: 'andrea'},
+		34:{id: 40, username: 'hihi'},
+		35:{id: 41, username: 'papen'},
+		36:{id: 42, username: 'XinFei'},
+		37:{id: 43, username: 'ans'},
+		38:{id: 44, username: 'WangWang'},
+		39:{id: 45, username: 'Tangbu'},
+		40:{id: 46, username: 'KuzaSeminalob'},
+		41:{id: 47, username: 'OrginMaya'},
+		42:{id: 48, username: 'IliyaSzenskaya'},
+		43:{id: 49, username: 'AAA-ZZZ111'},
+		44:{id: 50, username: 'needcomeback'},
+		45:{id: 51, username: 'sth'},
+		46:{id: 52, username: 'Tesla369'},
+		47:{id: 54, username: 'Shazam'},
+		48:{id: 55, username: 'popopo'},
+		49:{id: 56, username: 'wogusnn'},
+		50:{id: 57, username: 'sagam22'},
+		51:{id: 10, username: 'elle10983'}};
+	    for(var i=0;i<52;i++)
+	    {	  
+		dummy_bet(self, tempuser[i], Math.floor((Math.random() * 100) + 1)*2500, Math.floor((Math.random() * 400) + 101), function(err) {
+		    if (err) {
+//			if (typeof err === 'string')
+//				console.error('[INTERNAL_ERROR] unable to place bet, dummy user: ', err);
+//			else {
+//				console.error('[INTERNAL_ERROR] unable to place bet, dummy user: ', err);
+//			}
+			return;
+		    }   
+	        });
+	    }
         });
     }
 
@@ -287,14 +397,12 @@ Game.prototype.placeBet = function(user, betAmount, autoCashOut, callback) {
 
     self.pending[user.username] = user.username;
     self.pendingCount++;
-
     db.placeBet(betAmount, autoCashOut, user.id, self.gameId, function(err, playId) {
         self.pendingCount--;
 
         if (err) {
             if (err.code == '23514') // constraint violation
                 return callback('NOT_ENOUGH_MONEY');
-
             console.log('[INTERNAL_ERROR] could not play game, got error: ', err);
             callback(err);
         } else {

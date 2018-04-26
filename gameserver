@@ -1,0 +1,1 @@
+export DATABASE_URL=postgres://mybabuser:MyBab2014@localhost/mybabdb
